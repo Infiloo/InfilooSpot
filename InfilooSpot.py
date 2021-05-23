@@ -11,8 +11,7 @@ from threading import Thread, Lock
 HelloShown = False
 Exit       = False
 
-lcd_mutex = Lock()
-
+# handle keyboard releae events to see keys immediately without waiting for a Enter
 def on_release(key):
     # print('{0} released'.format(key))
     global cmd
@@ -22,15 +21,11 @@ def on_release(key):
 
     elif key == keyboard.Key.backspace:
         cmd = cmd[:-1]
-        lcd_mutex.acquire()
-        LCD1602.write(0, 0, cmd[:16] + "                ")
-        lcd_mutex.release();
+        printlcd(0, 0, cmd[:16] + "                ")
 
     elif key == keyboard.Key.space:
         cmd = cmd + ' '    
-        lcd_mutex.acquire()
-        LCD1602.write(0, 0, cmd[:16] + "                ")
-        lcd_mutex.release();
+        printlcd(0, 0, cmd[:16] + "                ")
 
     elif key == keyboard.Key.left:
         cmd = "p"
@@ -43,11 +38,9 @@ def on_release(key):
     else:
         if hasattr(key, 'char') == True:
             cmd = cmd + str(key.char)    
-            lcd_mutex.acquire()
-            LCD1602.write(0, 0, cmd[:16] + "                ")
-            lcd_mutex.release();
+            printlcd(0, 0, cmd[:16] + "                ")
             
-            
+# a background task fetching the current playback and showing it at the 2nd line of the display
 def show_current_playback():
     global sp
     while True:
@@ -62,10 +55,17 @@ def show_current_playback():
                     dur = it["duration_ms"]
                     # print((prg * 100) / dur)
 
-                    lcd_mutex.acquire()
-                    LCD1602.write(0, 1, str((prg * 100) / dur).zfill(2) + "% " + tit[:13] + "                ")
-                    lcd_mutex.release();
+                    printlcd(0, 1, tit[:16] + "                ")
         sleep(1)
+
+lcd_mutex = Lock()                      # use this mutex to lock the diplay access
+
+# function to write to the display using the mutex to avoid reentrance issues
+def printlcd(x, y, str):
+    lcd_mutex.acquire()
+    LCD1602.write(x, y, str)
+    print(str)
+    lcd_mutex.release()
 
 
 # wrap it all in an endless loop to try again if it fails
@@ -77,14 +77,14 @@ while Exit == False:
 
         if HelloShown == False:
             HelloShown = True
-            LCD1602.write(0, 0, "  InfilooSpot!")
-            LCD1602.write(0, 1, "  _-_-_-_-_-_")
+            printlcd(0, 0, "  InfilooSpot!")
+            printlcd(0, 1, "  _-_-_-_-_-_")
 
 
-        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",
-                                                       client_secret="bb988ada317e44e9a1a73f0b7accf06c",
-                                                       redirect_uri="http://127.0.0.1:9090",
-                                                       scope="user-read-playback-state,user-modify-playback-state"))
+        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",            # infiloospot client id
+                                                       client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
+                                                       redirect_uri="http://127.0.0.1:9090",                    # not needed
+                                                       scope="user-read-playback-state,user-modify-playback-state"))    # list permissions that we need
 
         # Shows playing devices
         res = sp.devices()
@@ -105,60 +105,46 @@ while Exit == False:
 
             if cmd == '1':
                 print("all")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  all               ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  all               ")
                 typec = ''
                 types = '?'
          
             elif cmd == '2':
                 print("artist")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  artist               ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  artist               ")
                 typec = 'artist'
                 types = 'i'
 
             elif cmd == '3':
                 print("album")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  album               ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  album               ")
                 typec = 'album'
                 types = 'a'
                 
             elif cmd == '4':
                 print("track")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  track               ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  track               ")
                 typec = 'track'
                 types = 't'       
 
             elif cmd == '5':
                 print("playlist")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  playlist               ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  playlist               ")
                 typec = 'playlist'
                 types = 'p'       
 
             elif cmd == 'q':
                 print("goodbye")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  InfilooSpot!  ")
-                LCD1602.write(0, 1, "   shutdown     ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  InfilooSpot!  ")
+                printlcd(0, 1, "   shutdown     ")
 
                 os.system("sudo shutdown now")
                 break
 
             elif cmd == 'e':
                 print("exit")
-                lcd_mutex.acquire()
-                LCD1602.write(0, 0, "  InfilooSpot!  ")
-                LCD1602.write(0, 1, "      exit      ")
-                lcd_mutex.release();
+                printlcd(0, 0, "  InfilooSpot!  ")
+                printlcd(0, 1, "      exit      ")
 
                 Exit = True
                 exit()
