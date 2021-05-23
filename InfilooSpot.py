@@ -64,7 +64,6 @@ lcd_mutex = Lock()                      # use this mutex to lock the diplay acce
 def printlcd(x, y, str):
     lcd_mutex.acquire()
     LCD1602.write(x, y, str)
-    print(str)
     lcd_mutex.release()
 
 
