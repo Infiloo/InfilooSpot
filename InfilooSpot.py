@@ -8,8 +8,11 @@ import os
 from thread import start_new_thread
 from threading import Thread, Lock
 
-HelloShown = False
-Exit       = False
+HelloShown = False          # show some start only when starting for the 1st time and not when we loop
+Exit       = False          # we really want to get out
+
+playlists  = []             # the users playlists when fetched after command p
+playlistidx = 0             # idx when iterating through th eplaylists
 
 # handle keyboard releae events to see keys immediately without waiting for a Enter
 def on_release(key):
@@ -51,8 +54,8 @@ def show_current_playback():
                 tit = it["name"]
                 if(any(tit)):
                     # print(tit)
-                    prg = x["progress_ms"]
-                    dur = it["duration_ms"]
+                    # prg = x["progress_ms"]
+                    # dur = it["duration_ms"]
                     # print((prg * 100) / dur)
 
                     printlcd(0, 1, tit[:16] + "                ")
@@ -83,7 +86,7 @@ while Exit == False:
         sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",            # infiloospot client id
                                                        client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
                                                        redirect_uri="http://127.0.0.1:9090",                    # not needed
-                                                       scope="user-read-playback-state,user-modify-playback-state"))    # list permissions that we need
+                                                       scope="user-read-playback-state,user-modify-playback-state,playlist-read-private"))    # request permissions that we need
 
         # Shows playing devices
         res = sp.devices()
@@ -93,12 +96,10 @@ while Exit == False:
 
         cmd   = ' '
         typec = ''
-        types = '?'
 
         while (cmd != 'q') and (cmd != 'e'):
             # Collect key characters until released - which will happen when enter is pressed
             cmd = ''                    #  clear cmd, finally we will find the new cmd here
-            # LCD1602.write(0, 0, "                ")
             with keyboard.Listener(on_release=on_release) as listener:
                 listener.join()
 
@@ -106,31 +107,30 @@ while Exit == False:
                 print("all")
                 printlcd(0, 0, "  all               ")
                 typec = ''
-                types = '?'
          
             elif cmd == '2':
                 print("artist")
                 printlcd(0, 0, "  artist               ")
                 typec = 'artist'
-                types = 'i'
 
             elif cmd == '3':
                 print("album")
                 printlcd(0, 0, "  album               ")
                 typec = 'album'
-                types = 'a'
                 
             elif cmd == '4':
                 print("track")
                 printlcd(0, 0, "  track               ")
                 typec = 'track'
-                types = 't'       
 
             elif cmd == '5':
                 print("playlist")
-                printlcd(0, 0, "  playlist               ")
-                typec = 'playlist'
-                types = 'p'       
+                printlcd(0, 0, "  playlist ...           ")
+                playlists   = sp.current_user_playlists(50, 0)        # fetch playlists from user account
+                # playlistidx = 0                                     # keep the idx so we start with the list used at the time selection
+                # for idx, item in enumerate(playlists['items']):
+                #     print(idx, item['name'] + " - " + item["id"])
+                printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
 
             elif cmd == 'q':
                 print("goodbye")
@@ -151,11 +151,36 @@ while Exit == False:
 
             elif cmd == 'n':
                 print("next")
-                sp.next_track()
+                if any(playlists):                  # when the list is not empty we are in playlist mode
+                    if(len(playlists["items"]) > (playlistidx + 1)):
+                        playlistidx += 1
+                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+                else:
+                    sp.next_track()
 
             elif cmd == 'p':
                 print("previous")
-                sp.previous_track()
+                if any(playlists):                  # when the list is not empty we are in playlist mode
+                    if(playlistidx >= 1):
+                        playlistidx -= 1
+                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+                else:
+                    sp.previous_track()
+
+            elif cmd == '':                         # no input - in playlist mode selection if current playlist
+                print("select")
+                if any(playlists):                  #  when we have a selected playlist enumera all tracks and feed tham into start_playback
+                    playlist = sp.playlist(playlists["items"][playlistidx]["id"])
+                    trackURIs = []
+                    for idx, item in enumerate(playlist['tracks']["items"]):
+                        track = item['track']
+                        print(idx, track['artists'][0]['name'], " ", track['name'], " ", track["uri"])
+                        trackURIs.append(track['uri'])
+
+                    sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs) 
+
+                    playlists  = []             # back to normal mode now playing the playlist
+                    # playlistidx = 0           # keep idx so we start from this in the list next time                    
 
             else:
                 # only when we have a string to search for
@@ -175,7 +200,7 @@ while Exit == False:
                             print(idx, track['name'], track['uri'] )
                             trackURIs.append(track['uri'])
                    
-                        sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs)                        
+                        sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs)      
 
     except:
         if Exit == False:
