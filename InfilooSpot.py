@@ -14,6 +14,9 @@ Exit       = False          # we really want to get out
 playlists  = []             # the users playlists when fetched after command p
 playlistidx = 0             # idx when iterating through th eplaylists
 
+albums     = []             # when we looked for an album this is the list to iterate through
+albumidx   = 0              # current selected album
+
 # handle keyboard releae events to see keys immediately without waiting for a Enter
 def on_release(key):
     # print('{0} released'.format(key))
@@ -155,6 +158,12 @@ while Exit == False:
                     if(len(playlists["items"]) > (playlistidx + 1)):
                         playlistidx += 1
                         printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+
+                elif any(albums):
+                   if(len(albums["albums"]["items"]) > (albumidx + 1)):
+                        albumidx += 1
+                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"] + "             ")    # show album
+
                 else:
                     sp.next_track()
 
@@ -164,23 +173,29 @@ while Exit == False:
                     if(playlistidx >= 1):
                         playlistidx -= 1
                         printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+
+                if any(albums):                  # when the list is not empty we are in playlist mode
+                    if(albumidx >= 1):
+                        albumidx -= 1
+                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"] + "             ")    # show album
+                       
                 else:
                     sp.previous_track()
 
             elif cmd == '':                         # no input - in playlist mode selection if current playlist
                 print("select")
-                if any(playlists):                  #  when we have a selected playlist enumera all tracks and feed tham into start_playback
-                    playlist = sp.playlist(playlists["items"][playlistidx]["id"])
-                    trackURIs = []
-                    for idx, item in enumerate(playlist['tracks']["items"]):
-                        track = item['track']
-                        print(idx, track['artists'][0]['name'], " ", track['name'], " ", track["uri"])
-                        trackURIs.append(track['uri'])
+                if any(playlists):                  #  when we have a selected playlist ask spotify to play it
+                    sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', playlists["items"][playlistidx]["uri"]) 
 
-                    sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs) 
+                    playlists  = []                 # back to normal mode now playing the playlist
+                    # playlistidx = 0               # keep idx so we start from this in the list next time            
 
-                    playlists  = []             # back to normal mode now playing the playlist
-                    # playlistidx = 0           # keep idx so we start from this in the list next time                    
+                elif any(albums):                   # when we have a selected album ask spotify to play it 
+                    sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', albums['albums']["items"][albumidx]["uri"])
+
+                    albums   = []                   # select list to return int normal mode
+                    albumidx = 0
+                            
 
             else:
                 # only when we have a string to search for
@@ -190,17 +205,24 @@ while Exit == False:
                         cmd = typec + ":" + cmd
                         print(cmd)
                     
-                    # search it
-                    results = sp.search(q = cmd, limit = 50)
+                    if(typec != 'album'):
+                        # search it if it is just a normal search request for a track
+                        results = sp.search(q = cmd, limit = 50)
 
-                    # check if there is anything at all
-                    if(any(results)):
-                        trackURIs = []
-                        for idx, track in enumerate(results['tracks']['items']):
-                            print(idx, track['name'], track['uri'] )
-                            trackURIs.append(track['uri'])
-                   
-                        sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs)      
+                        # check if there is anything at all
+                        if(any(results)):
+                            trackURIs = []
+                            for idx, track in enumerate(results['tracks']['items']):
+                                print(idx, track['name'], track['uri'] )
+                                trackURIs.append(track['uri'])
+                    
+                            sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs)      
+
+                    else:
+                        # look for albums and generate a list of found ones to select like a playlist
+                        albums   = sp.search(cmd, limit = 50, type = "album")
+                        albumidx = 0
+                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"] + "             ")    # show 1st album
 
     except:
         if Exit == False:
