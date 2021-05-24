@@ -27,11 +27,11 @@ def on_release(key):
 
     elif key == keyboard.Key.backspace:
         cmd = cmd[:-1]
-        printlcd(0, 0, cmd[:16] + "                ")
+        printlcd(0, 0, cmd)
 
     elif key == keyboard.Key.space:
         cmd = cmd + ' '    
-        printlcd(0, 0, cmd[:16] + "                ")
+        printlcd(0, 0, cmd)
 
     elif key == keyboard.Key.left:
         cmd = "p"
@@ -44,7 +44,7 @@ def on_release(key):
     else:
         if hasattr(key, 'char') == True:
             cmd = cmd + str(key.char)    
-            printlcd(0, 0, cmd[:16] + "                ")
+            printlcd(0, 0, cmd)
             
 # a background task fetching the current playback and showing it at the 2nd line of the display
 def show_current_playback():
@@ -61,7 +61,7 @@ def show_current_playback():
                     # dur = it["duration_ms"]
                     # print((prg * 100) / dur)
 
-                    printlcd(0, 1, tit[:16] + "                ")
+                    printlcd(0, 1, tit)
         sleep(1)
 
 lcd_mutex = Lock()                      # use this mutex to lock the diplay access
@@ -69,7 +69,7 @@ lcd_mutex = Lock()                      # use this mutex to lock the diplay acce
 # function to write to the display using the mutex to avoid reentrance issues
 def printlcd(x, y, str):
     lcd_mutex.acquire()
-    LCD1602.write(x, y, str)
+    LCD1602.write(x, y, (str + "                ")[:16])        # right fill the complete display line but cut everything that is outside of the diasplay
     lcd_mutex.release()
 
 
@@ -108,32 +108,32 @@ while Exit == False:
 
             if cmd == '1':
                 print("all")
-                printlcd(0, 0, "  all               ")
+                printlcd(0, 0, "  all")
                 typec = ''
          
             elif cmd == '2':
                 print("artist")
-                printlcd(0, 0, "  artist               ")
+                printlcd(0, 0, "  artist")
                 typec = 'artist'
 
             elif cmd == '3':
                 print("album")
-                printlcd(0, 0, "  album               ")
+                printlcd(0, 0, "  album")
                 typec = 'album'
                 
             elif cmd == '4':
                 print("track")
-                printlcd(0, 0, "  track               ")
+                printlcd(0, 0, "  track")
                 typec = 'track'
 
             elif cmd == '5':
                 print("playlist")
-                printlcd(0, 0, "  playlist ...           ")
+                printlcd(0, 0, "  playlist ...")
                 playlists   = sp.current_user_playlists(50, 0)        # fetch playlists from user account
                 # playlistidx = 0                                     # keep the idx so we start with the list used at the time selection
                 # for idx, item in enumerate(playlists['items']):
                 #     print(idx, item['name'] + " - " + item["id"])
-                printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+                printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
             elif cmd == 'q':
                 print("goodbye")
@@ -157,12 +157,12 @@ while Exit == False:
                 if any(playlists):                  # when the list is not empty we are in playlist mode
                     if(len(playlists["items"]) > (playlistidx + 1)):
                         playlistidx += 1
-                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
                 elif any(albums):
                    if(len(albums["albums"]["items"]) > (albumidx + 1)):
                         albumidx += 1
-                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"] + "             ")    # show album
+                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show album
 
                 else:
                     sp.next_track()
@@ -172,12 +172,12 @@ while Exit == False:
                 if any(playlists):                  # when the list is not empty we are in playlist mode
                     if(playlistidx >= 1):
                         playlistidx -= 1
-                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"] + "             ")
+                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
                 if any(albums):                  # when the list is not empty we are in playlist mode
                     if(albumidx >= 1):
                         albumidx -= 1
-                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"] + "             ")    # show album
+                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show album
                        
                 else:
                     sp.previous_track()
@@ -222,7 +222,7 @@ while Exit == False:
                         # look for albums and generate a list of found ones to select like a playlist
                         albums   = sp.search(cmd, limit = 50, type = "album")
                         albumidx = 0
-                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"] + "             ")    # show 1st album
+                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show 1st album
 
     except:
         if Exit == False:
