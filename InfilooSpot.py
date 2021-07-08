@@ -7,6 +7,14 @@ from pynput import keyboard
 import os
 from thread import start_new_thread
 from threading import Thread, Lock
+import alsaaudio
+
+# Create Audio Object
+mixer       = alsaaudio.Mixer()
+mixer.setvolume(50)
+currentvol  = mixer.getvolume()
+currentvol  = int(currentvol[0])
+
 
 HelloShown = False          # show some start only when starting for the 1st time and not when we loop
 Exit       = False          # we really want to get out
@@ -41,6 +49,16 @@ def on_release(key):
         cmd = "n"
         return False
 
+    elif key == keyboard.Key.media_volume_up:
+        print("VolUp")
+        change_volume(5)
+        return False
+
+    elif key == keyboard.Key.media_volume_down:
+        print("VolDown")
+        change_volume(-5)
+        return False
+        
     else:
         if hasattr(key, 'char') == True:
             cmd = cmd + str(key.char)    
@@ -71,6 +89,15 @@ def printlcd(x, y, str):
     lcd_mutex.acquire()
     LCD1602.write(x, y, (str + "                ")[:16])        # right fill the complete display line but cut everything that is outside of the diasplay
     lcd_mutex.release()
+
+# change the alsa colume up or down by a given % value
+def change_volume(volume):
+	global currentvol
+	if (currentvol <= 100) and (currentvol >= 0):
+	    newVol = currentvol + volume
+	    mixer.setvolume(newVol)
+	    currentvol = mixer.getvolume()
+	    currentvol = int(currentvol[0])
 
 
 # wrap it all in an endless loop to try again if it fails
