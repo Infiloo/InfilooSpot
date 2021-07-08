@@ -110,29 +110,38 @@ while Exit == False:
                 print("all")
                 printlcd(0, 0, "  all")
                 typec = ''
+                playlists  = []             
+                albums     = []
          
             elif cmd == '2':
                 print("artist")
                 printlcd(0, 0, "  artist")
                 typec = 'artist'
+                playlists  = []             
+                albums     = []
 
             elif cmd == '3':
                 print("album")
                 printlcd(0, 0, "  album")
                 typec = 'album'
+                playlists  = []             
+                albums     = []
                 
             elif cmd == '4':
                 print("track")
                 printlcd(0, 0, "  track")
                 typec = 'track'
+                playlists  = []             
+                albums     = []
 
             elif cmd == '5':
                 print("playlist")
                 printlcd(0, 0, "  playlist ...")
+                albums      = []
                 playlists   = sp.current_user_playlists(50, 0)        # fetch playlists from user account
                 # playlistidx = 0                                     # keep the idx so we start with the list used at the time selection
-                # for idx, item in enumerate(playlists['items']):
-                #     print(idx, item['name'] + " - " + item["id"])
+                for idx, item in enumerate(playlists['items']):
+                    print(idx, item['name'] + " - " + item["id"])
                 printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
             elif cmd == 'q':
