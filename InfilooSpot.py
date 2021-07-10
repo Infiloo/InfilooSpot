@@ -1,19 +1,40 @@
+#spotify
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from pprint import pprint
-from time import sleep
+
+# mpc / mpd
+from mpd import MPDClient
+
+# UI
 import LCD1602
 from pynput import keyboard
+
+#system 
 import os
 from thread import start_new_thread
 from threading import Thread, Lock
 import alsaaudio
 
+#debug and misc
+from pprint import pprint
+from time import sleep
+from enum import Enum
+
+# general operation mode
+class GMode(Enum):
+    SPOT    = 1             # spotify
+    IRAD    = 2             # mpd internetradio
+    MED     = 3             # mpd media
+    EXIT    = 10            # stop all
+
+gmode       = GMode.SPOT    # start with spotify 
+
+
 # Create Audio Object
-mixer       = alsaaudio.Mixer()
-mixer.setvolume(100)
-currentvol  = mixer.getvolume()
-currentvol  = int(currentvol[0])
+# mixer       = alsaaudio.Mixer()
+# mixer.setvolume(100)
+currentvol  = 100 # mixer.getvolume()
+# currentvol  = int(currentvol[0])
 
 
 HelloShown = False          # show some start only when starting for the 1st time and not when we loop
@@ -61,24 +82,68 @@ def on_release(key):
         if hasattr(key, 'char') == True:
             cmd = cmd + str(key.char)    
             printlcd(0, 0, cmd)
+
+# change general mode
+def change_gmode(new_mode):
+    global gmode
+    print("change mode to: "  + new_mode.name)
+    if(new_mode == GMode.SPOT):
+        print("SPOT")
+        sp.start_playback()         # go on playing
+        mpc.stop();                 # stop playing with mpc
+        mpc.clear()
+
+    elif(new_mode == GMode.IRAD):
+        print("IRAD")
+        sp.pause_playback()         # stop playing spotify
+        mpc.stop();                 # stop playing with mpc
+        mpc.clear()
+
+    elif(new_mode == GMode.MED):
+        print("MED")
+        sp.pause_playback()         # stop playing spotify
+        mpc.stop();                 # stop playing with mpc
+        mpc.clear()
+
+    elif(new_mode == GMode.EXIT):
+        print("EXIT")
+        sp.pause_playback()         # stop playing spotify
+        mpc.stop();                 # stop playing with mpc
+        mpc.clear()
+    
+    gmode = new_mode
+
             
 # a background task fetching the current playback and showing it at the 2nd line of the display
 def show_current_playback():
     global sp
+    
     while True:
-        x = sp.current_playback("DE")
-        if((x != None) and (any(x))):
-            it = x.get("item")
-            if(any(it)):
-                tit = it["name"]
-                if(any(tit)):
-                    # print(tit)
-                    # prg = x["progress_ms"]
-                    # dur = it["duration_ms"]
-                    # print((prg * 100) / dur)
+        try:
+            if gmode == GMode.SPOT:
+                x = sp.current_playback("DE")
+                if((x != None) and (any(x))):
+                    it = x.get("item")
+                    if(any(it)):
+                        tit = it["name"]
+                        if(any(tit)):
+                            # print(tit)
+                            # prg = x["progress_ms"]
+                            # dur = it["duration_ms"]
+                            # print((prg * 100) / dur)
 
-                    printlcd(0, 1, tit)
-        sleep(1)
+                            printlcd(0, 1, tit)
+            else:
+                cursong = mpc.currentsong()
+                if(any(cursong)):
+                    print(cursong)
+                    if("name" in cursong.keys()):
+                        # print(cursong["name"])
+                        printlcd(0, 1, cursong["name"])
+
+            sleep(2)
+        except:
+            print("Ups in show playback")
 
 lcd_mutex = Lock()                      # use this mutex to lock the diplay access
 
@@ -92,13 +157,14 @@ def printlcd(x, y, str):
 def change_volume(volume):
 	global currentvol
 	if ((currentvol + volume) <= 100) and ((currentvol + volume) >= 0):
-	    newVol = currentvol + volume
-	    mixer.setvolume(newVol)
-	    currentvol = mixer.getvolume()
-	    currentvol = int(currentvol[0])
+	    currentvol = currentvol + volume
+	    mpc.setvol(currentvol)
         sp.volume(currentvol)
         print("Volume: " + str(currentvol))
 
+
+# start background thread to show what we are doing
+start_new_thread(show_current_playback, ())
 
 # wrap it all in an endless loop to try again if it fails
 while Exit == False:
@@ -112,18 +178,28 @@ while Exit == False:
             printlcd(0, 0, "  InfilooSpot!")
             printlcd(0, 1, "  _-_-_-_-_-_")
 
-
+        # init and connect to spotify
         sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",            # infiloospot client id
                                                        client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
                                                        redirect_uri="http://127.0.0.1:9090",                    # not needed
                                                        scope="user-read-playback-state,user-modify-playback-state,playlist-read-private"))    # request permissions that we need
 
-        # Shows playing devices
+        # Shows playing spotify connect devices
         res = sp.devices()
         pprint(res)
-        
-        start_new_thread(show_current_playback, ())
 
+        # create abd connect mpd client
+        mpc = MPDClient()               # create client object
+        mpc.timeout = 10                # network timeout in seconds (floats allowed), default: None
+        mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
+        mpc.connect("localhost", 6600)  # connect to localhost:6600
+        print(mpc.mpd_version)          # print the MPD version
+
+        # set volume back to max
+        currentvol = 100
+        mpc.setvol(currentvol)
+        sp.volume(currentvol)
+        
         cmd   = ' '
         typec = ''
 
@@ -136,6 +212,7 @@ while Exit == False:
             if cmd == '1':
                 print("all")
                 printlcd(0, 0, "  all")
+                change_gmode(GMode.SPOT)
                 typec = ''
                 playlists  = []             
                 albums     = []
@@ -143,6 +220,7 @@ while Exit == False:
             elif cmd == '2':
                 print("artist")
                 printlcd(0, 0, "  artist")
+                change_gmode(GMode.SPOT)
                 typec = 'artist'
                 playlists  = []             
                 albums     = []
@@ -150,6 +228,7 @@ while Exit == False:
             elif cmd == '3':
                 print("album")
                 printlcd(0, 0, "  album")
+                change_gmode(GMode.SPOT)
                 typec = 'album'
                 playlists  = []             
                 albums     = []
@@ -157,6 +236,7 @@ while Exit == False:
             elif cmd == '4':
                 print("track")
                 printlcd(0, 0, "  track")
+                change_gmode(GMode.SPOT)
                 typec = 'track'
                 playlists  = []             
                 albums     = []
@@ -164,6 +244,7 @@ while Exit == False:
             elif cmd == '5':
                 print("playlist")
                 printlcd(0, 0, "  playlist ...")
+                change_gmode(GMode.SPOT)
                 albums      = []
                 playlists   = sp.current_user_playlists(50, 0)        # fetch playlists from user account
                 # playlistidx = 0                                     # keep the idx so we start with the list used at the time selection
@@ -171,10 +252,24 @@ while Exit == False:
                     print(idx, item['name'] + " - " + item["id"])
                 printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
+            elif cmd == '6':
+                print("I-Radio")
+                printlcd(0, 0, " Internet radio")
+                change_gmode(GMode.IRAD)
+                mpc.load("radiosender")
+                mpc.play("1")
+
+            elif cmd == '7':
+                print("Media")
+                printlcd(0, 0, " Mediaplayer")
+                change_gmode(GMode.MED)
+
+
             elif cmd == 'q':
                 print("goodbye")
                 printlcd(0, 0, "  InfilooSpot!  ")
                 printlcd(0, 1, "   shutdown     ")
+                change_gmode(GMode.EXIT)
 
                 os.system("sudo shutdown now")
                 break
@@ -183,6 +278,11 @@ while Exit == False:
                 print("exit")
                 printlcd(0, 0, "  InfilooSpot!  ")
                 printlcd(0, 1, "      exit      ")
+                change_gmode(GMode.EXIT)
+
+                # close and disconnect mpc
+                mpc.close()                     # send the close command
+                mpc.disconnect()                # disconnect from the server
 
                 Exit = True
                 exit()
@@ -198,33 +298,45 @@ while Exit == False:
 
             elif cmd == 'n':
                 print("next")
-                if any(playlists):                  # when the list is not empty we are in playlist mode
-                    if(len(playlists["items"]) > (playlistidx + 1)):
-                        playlistidx += 1
-                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
+                if gmode == GMode.SPOT:
+                    if any(playlists):                  # when the list is not empty we are in playlist mode
+                        if(len(playlists["items"]) > (playlistidx + 1)):
+                            playlistidx += 1
+                            printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
-                elif any(albums):
-                   if(len(albums["albums"]["items"]) > (albumidx + 1)):
-                        albumidx += 1
-                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show album
+                    elif any(albums):
+                        if(len(albums["albums"]["items"]) > (albumidx + 1)):
+                                albumidx += 1
+                                printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show album
 
+                    else:
+                        sp.next_track()
                 else:
-                    sp.next_track()
+                    try:
+                        mpc.next()
+                    except:
+                        print("Ups next")
 
             elif cmd == 'p':
                 print("previous")
-                if any(playlists):                  # when the list is not empty we are in playlist mode
-                    if(playlistidx >= 1):
-                        playlistidx -= 1
-                        printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
+                if gmode == GMode.SPOT:
+                    if any(playlists):                  # when the list is not empty we are in playlist mode
+                        if(playlistidx >= 1):
+                            playlistidx -= 1
+                            printlcd(0, 0, "P " + playlists["items"][playlistidx]["name"])
 
-                if any(albums):                  # when the list is not empty we are in playlist mode
-                    if(albumidx >= 1):
-                        albumidx -= 1
-                        printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show album
-                       
+                    elif any(albums):                  # when the list is not empty we are in playlist mode
+                        if(albumidx >= 1):
+                            albumidx -= 1
+                            printlcd(0, 0, "A " + albums["albums"]["items"][albumidx]["name"])    # show album
+                        
+                    else:
+                        sp.previous_track()
                 else:
-                    sp.previous_track()
+                    try:
+                        mpc.previous()
+                    except:
+                        print("Ups prev")
 
             elif cmd == '':                         # no input - in playlist mode selection if current playlist
                 print("select")
