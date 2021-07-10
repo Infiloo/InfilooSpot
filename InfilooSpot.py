@@ -11,7 +11,7 @@ import alsaaudio
 
 # Create Audio Object
 mixer       = alsaaudio.Mixer()
-mixer.setvolume(50)
+mixer.setvolume(100)
 currentvol  = mixer.getvolume()
 currentvol  = int(currentvol[0])
 
@@ -49,14 +49,12 @@ def on_release(key):
         cmd = "n"
         return False
 
-    elif key == keyboard.Key.media_volume_up:
-        print("VolUp")
-        change_volume(5)
+    elif (key == keyboard.Key.media_volume_up) or (key == keyboard.Key.up):
+        cmd = "u"
         return False
 
-    elif key == keyboard.Key.media_volume_down:
-        print("VolDown")
-        change_volume(-5)
+    elif (key == keyboard.Key.media_volume_down) or (key == keyboard.Key.down):
+        cmd = "d"
         return False
         
     else:
@@ -93,11 +91,13 @@ def printlcd(x, y, str):
 # change the alsa colume up or down by a given % value
 def change_volume(volume):
 	global currentvol
-	if (currentvol <= 100) and (currentvol >= 0):
+	if ((currentvol + volume) <= 100) and ((currentvol + volume) >= 0):
 	    newVol = currentvol + volume
 	    mixer.setvolume(newVol)
 	    currentvol = mixer.getvolume()
 	    currentvol = int(currentvol[0])
+        sp.volume(currentvol)
+        print("Volume: " + str(currentvol))
 
 
 # wrap it all in an endless loop to try again if it fails
@@ -187,6 +187,14 @@ while Exit == False:
                 Exit = True
                 exit()
                 break
+
+            elif cmd == "u":
+                print("VolUp")
+                change_volume(5)
+
+            elif cmd == "d":
+                print("VolDown")
+                change_volume(-5)
 
             elif cmd == 'n':
                 print("next")
