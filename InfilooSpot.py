@@ -86,30 +86,35 @@ def on_release(key):
 # change general mode
 def change_gmode(new_mode):
     global gmode
+
     print("change mode to: "  + new_mode.name)
-    if(new_mode == GMode.SPOT):
-        print("SPOT")
-        sp.start_playback()         # go on playing
-        mpc.stop();                 # stop playing with mpc
-        mpc.clear()
+    try:
+        if(new_mode == GMode.SPOT):
+            print("SPOT")
+            sp.start_playback()         # go on playing
+            mpc.stop();                 # stop playing with mpc
+            mpc.clear()
 
-    elif(new_mode == GMode.IRAD):
-        print("IRAD")
-        sp.pause_playback()         # stop playing spotify
-        mpc.stop();                 # stop playing with mpc
-        mpc.clear()
+        elif(new_mode == GMode.IRAD):
+            print("IRAD")
+            sp.pause_playback()         # stop playing spotify
+            mpc.stop();                 # stop playing with mpc
+            mpc.clear()
 
-    elif(new_mode == GMode.MED):
-        print("MED")
-        sp.pause_playback()         # stop playing spotify
-        mpc.stop();                 # stop playing with mpc
-        mpc.clear()
+        elif(new_mode == GMode.MED):
+            print("MED")
+            sp.pause_playback()         # stop playing spotify
+            mpc.stop();                 # stop playing with mpc
+            mpc.clear()
 
-    elif(new_mode == GMode.EXIT):
-        print("EXIT")
-        sp.pause_playback()         # stop playing spotify
-        mpc.stop();                 # stop playing with mpc
-        mpc.clear()
+        elif(new_mode == GMode.EXIT):
+            print("EXIT")
+            sp.pause_playback()         # stop playing spotify
+            mpc.stop();                 # stop playing with mpc
+            mpc.clear()
+
+    except:
+        print("Ups in changemode")
     
     gmode = new_mode
 
@@ -140,8 +145,8 @@ def show_current_playback():
                     if("name" in cursong.keys()):
                         # print(cursong["name"])
                         printlcd(0, 1, cursong["name"])
-
             sleep(2)
+
         except:
             print("Ups in show playback")
 
@@ -155,12 +160,16 @@ def printlcd(x, y, str):
 
 # change the alsa colume up or down by a given % value
 def change_volume(volume):
-	global currentvol
-	if ((currentvol + volume) <= 100) and ((currentvol + volume) >= 0):
-	    currentvol = currentvol + volume
-	    mpc.setvol(currentvol)
-        sp.volume(currentvol)
-        print("Volume: " + str(currentvol))
+    global currentvol
+
+    try:
+        if ((currentvol + volume) <= 100) and ((currentvol + volume) >= 0):
+            currentvol = currentvol + volume
+            mpc.setvol(currentvol)
+            sp.volume(currentvol)
+            print("Volume: " + str(currentvol))
+    except:
+        print("Ups in change_volumer")
 
 
 # start background thread to show what we are doing
@@ -197,8 +206,8 @@ while Exit == False:
 
         # set volume back to max
         currentvol = 100
-        mpc.setvol(currentvol)
-        sp.volume(currentvol)
+        # mpc.setvol(currentvol)
+        # sp.volume(currentvol)
         
         cmd   = ' '
         typec = ''
