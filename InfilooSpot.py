@@ -13,7 +13,6 @@ from pynput import keyboard
 import os
 from thread import start_new_thread
 from threading import Thread, Lock
-import alsaaudio
 
 #debug and misc
 from pprint import pprint
@@ -22,20 +21,13 @@ from enum import Enum
 
 # general operation mode
 class GMode(Enum):
+    NONE    = 0             # startup - not yet initialized
     SPOT    = 1             # spotify
     IRAD    = 2             # mpd internetradio
     MED     = 3             # mpd media
     EXIT    = 10            # stop all
 
-gmode       = GMode.SPOT    # start with spotify 
-
-
-# Create Audio Object
-# mixer       = alsaaudio.Mixer()
-# mixer.setvolume(100)
-currentvol  = 100 # mixer.getvolume()
-# currentvol  = int(currentvol[0])
-
+gmode       = GMode.NONE    # start with blank and wait until the init is done to switch to SPOT 
 
 HelloShown = False          # show some start only when starting for the 1st time and not when we loop
 Exit       = False          # we really want to get out
@@ -138,17 +130,19 @@ def show_current_playback():
                             # print((prg * 100) / dur)
 
                             printlcd(0, 1, tit)
-            else:
+
+            elif (gmode == GMode.IRAD) or (gmode == GMode.MED):
                 cursong = mpc.currentsong()
                 if(any(cursong)):
                     print(cursong)
                     if("name" in cursong.keys()):
                         # print(cursong["name"])
                         printlcd(0, 1, cursong["name"])
-            sleep(2)
-
         except:
             print("Ups in show playback")
+
+        sleep(2)
+
 
 lcd_mutex = Lock()                      # use this mutex to lock the diplay access
 
@@ -166,7 +160,9 @@ def change_volume(volume):
         if ((currentvol + volume) <= 100) and ((currentvol + volume) >= 0):
             currentvol = currentvol + volume
             mpc.setvol(currentvol)
-            sp.volume(currentvol)
+            x = sp.current_playback("DE")                       # spotipy crashes when volume() is called but it is not playing yet
+            if((x != None) and (any(x))):
+                sp.volume(currentvol)
             print("Volume: " + str(currentvol))
     except:
         print("Ups in change_volumer")
@@ -178,37 +174,52 @@ start_new_thread(show_current_playback, ())
 # wrap it all in an endless loop to try again if it fails
 while Exit == False:
     try:
-        # start UI
-        LCD1602.init(0x27, 1)
-        print("Hello at InfilooSpot!")
-
         if HelloShown == False:
             HelloShown = True
+
+            # start UI
+            LCD1602.init(0x27, 1)
+            print("Hello at InfilooSpot!")   
+
             printlcd(0, 0, "  InfilooSpot!")
-            printlcd(0, 1, "  _-_-_-_-_-_")
 
-        # init and connect to spotify
-        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",            # infiloospot client id
-                                                       client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
-                                                       redirect_uri="http://127.0.0.1:9090",                    # not needed
-                                                       scope="user-read-playback-state,user-modify-playback-state,playlist-read-private"))    # request permissions that we need
+        # run through init which seems to fail especially when wifi is bad or takes longer to establish
+        bInitDone = False
+        while bInitDone == False:
+            try:
+                printlcd(0, 1, "  _-_-_-_-_-_")
 
-        # Shows playing spotify connect devices
-        res = sp.devices()
-        pprint(res)
+                # init and connect to spotify
+                sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",            # infiloospot client id
+                                                            client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
+                                                            redirect_uri="http://127.0.0.1:9090",                    # not needed
+                                                            scope="user-read-playback-state,user-modify-playback-state,playlist-read-private"))    # request permissions that we need
+                # Shows playing spotify connect devices
+                res = sp.devices()
+                pprint(res)
+                printlcd(0, 1, "  _-_-_-_-_-_S")
 
-        # create abd connect mpd client
-        mpc = MPDClient()               # create client object
-        mpc.timeout = 10                # network timeout in seconds (floats allowed), default: None
-        mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
-        mpc.connect("localhost", 6600)  # connect to localhost:6600
-        print(mpc.mpd_version)          # print the MPD version
 
-        # set volume back to max
-        currentvol = 100
-        # mpc.setvol(currentvol)
-        # sp.volume(currentvol)
+                # create abd connect mpd client
+                mpc = MPDClient()               # create client object
+                mpc.timeout = 10                # network timeout in seconds (floats allowed), default: None
+                mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
+                mpc.connect("localhost", 6600)  # connect to localhost:6600
+                print(mpc.mpd_version)          # print the MPD version
+                printlcd(0, 1, "  _-_-_-_-_-_SM")
+
+                # set volume back to max
+                currentvol = 100
+                mpc.setvol(currentvol)
+                # sp.volume(currentvol)         # do not set the sp volume as long as we are not playing
+                printlcd(0, 1, "  _-_-_-_-_-_SMV")
+
+                bInitDone = True
+            except: 
+                print("Ups in init")
+                sleep(1)
         
+        gmode = GMode.SPOT
         cmd   = ' '
         typec = ''
 
