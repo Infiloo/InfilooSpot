@@ -6,7 +6,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from mpd import MPDClient
 
 # UI
-import LCD1602
+import lcddriver
 from pynput import keyboard
 
 #system 
@@ -149,7 +149,7 @@ lcd_mutex = Lock()                      # use this mutex to lock the diplay acce
 # function to write to the display using the mutex to avoid reentrance issues
 def printlcd(x, y, str):
     lcd_mutex.acquire()
-    LCD1602.write(x, y, (str + "                ")[:16])        # right fill the complete display line but cut everything that is outside of the diasplay
+    lcd.lcd_display_string((str + "                    ")[:20], y) # right fill the complete display line but cut everything that is outside of the diasplay
     lcd_mutex.release()
 
 # change the alsa colume up or down by a given % value
@@ -177,10 +177,11 @@ while Exit == False:
         if HelloShown == False:
             HelloShown = True
 
-            # start UI
-            LCD1602.init(0x27, 1)
-            print("Hello at InfilooSpot!")   
+            # lcd start
+            lcd = lcddriver.lcd()
+            lcd.lcd_clear()
 
+            print("Hello at InfilooSpot!")   
             printlcd(0, 0, "  InfilooSpot!")
 
         # run through init which seems to fail especially when wifi is bad or takes longer to establish
