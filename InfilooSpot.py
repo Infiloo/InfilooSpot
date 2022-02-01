@@ -206,6 +206,8 @@ while Exit == False:
                 mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
                 mpc.connect("localhost", 6600)  # connect to localhost:6600
                 print(mpc.mpd_version)          # print the MPD version
+                mpc.stop();                     # stop playing with mpc just in case it is running from the last time
+                mpc.clear()
                 printlcd(0, 1, "  _-_-_-_-_-_SM")
 
                 # set volume back to max
