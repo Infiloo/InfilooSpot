@@ -149,7 +149,7 @@ lcd_mutex = Lock()                      # use this mutex to lock the diplay acce
 # function to write to the display using the mutex to avoid reentrance issues
 def printlcd(x, y, str):
     lcd_mutex.acquire()
-    lcd.lcd_display_string((str + "                    ")[:20], y) # right fill the complete display line but cut everything that is outside of the diasplay
+    lcd.lcd_display_string((str + "                    ")[:20], y + 1) # right fill the complete display line but cut everything that is outside of the diasplay
     lcd_mutex.release()
 
 # change the alsa colume up or down by a given % value
