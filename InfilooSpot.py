@@ -18,6 +18,7 @@ from threading import Thread, Lock
 from pprint import pprint
 from time import sleep
 from enum import Enum
+import json
 
 # general operation mode
 class GMode(Enum):
@@ -122,22 +123,48 @@ def show_current_playback():
                 if((x != None) and (any(x))):
                     it = x.get("item")
                     if(any(it)):
+                        # print(json.dumps(it, indent=4))     # get a full formatted output of what spitify gives us
+
+                        # show title in the 2nd row
                         tit = it["name"]
                         if(any(tit)):
-                            # print(tit)
-                            # prg = x["progress_ms"]
-                            # dur = it["duration_ms"]
-                            # print((prg * 100) / dur)
-
                             printlcd(0, 1, tit)
+
+                        # show album
+                        alb = it["album"]["name"]
+                        if(any(alb)):
+                            printlcd(0, 2, alb)
+
+                        # show 1st artist
+                        art = it["artists"][0]["name"]
+                        if(any(alb)):
+                            printlcd(0, 3, art)
 
             elif (gmode == GMode.IRAD) or (gmode == GMode.MED):
                 cursong = mpc.currentsong()
                 if(any(cursong)):
+                    # print(json.dumps(cursong, indent=4))     # get a full formatted output of what spitify gives us
                     print(cursong)
+
+                    # show station name
+                    stname = ""
                     if("name" in cursong.keys()):
                         # print(cursong["name"])
+                        stname = cursong["name"]
                         printlcd(0, 1, cursong["name"])
+                    else:
+                        printlcd(0, 1, "")
+
+                    # show title (if given and different from name (as some stations send it)
+                    if("title" in cursong.keys() and (stname != cursong["title"])):     
+                        # print(cursong["name"])
+                        printlcd(0, 2, cursong["title"])
+                    else:
+                        printlcd(0, 2, "")
+
+                    # clear 4th line
+                    printlcd(0, 3, "")
+                        
         except:
             print("Ups in show playback")
 
