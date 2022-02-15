@@ -1,5 +1,5 @@
 # InfilooSpot
-Simple spotipy based Spotify client using keyboard as input and a 2*16 char LCD1602 as output
+Simple spotipy based Spotify client using keyboard as input and a 4*20 char LCD2002 as output
 
 It was made to run on a raspberry with a local spotify connect (raspotify).
 
