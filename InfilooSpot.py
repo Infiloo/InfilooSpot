@@ -239,7 +239,7 @@ while Exit == False:
                 printlcd(0, 1, "  _-_-_-_-_-_SM")
 
                 # set volume back to max
-                currentvol = 100
+                currentvol = 50
                 mpc.setvol(currentvol)
                 # sp.volume(currentvol)         # do not set the sp volume as long as we are not playing
                 printlcd(0, 1, "  _-_-_-_-_-_SMV")
