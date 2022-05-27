@@ -21,7 +21,8 @@ def cbType_Select(event):
         for idx, item in enumerate(playlists['items']):
             #     print(idx, item['name'] + " - " + item["id"])
            list.append(item['name'])
-        cbSearch['values'] = list            
+        cbSearch['values'] = list       
+        cbSearch.event_generate('<Button-1>')     
     else:
         # something we need t e´search is selected - list list
         cbSearch['values']={}             # clear list if combobox again
@@ -190,21 +191,17 @@ btVolPlus.pack(side=tk.BOTTOM, padx=5)
 frame4 = tk.Frame(root)
 frame4.pack(fill=tk.X)
 
-btP1 = tk.Button(frame4, text="-> P1", width=6)
-btP1.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+lbAddPlayLb = tk.Label(frame4, text="Add to playlist:")
+lbAddPlayLb.pack(side=tk.LEFT, padx=5)
 
-btP2 = tk.Button(frame4, text="-> P2", width=6)
-btP2.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+cbAddPlay = ttk.Combobox(frame4)
+cbAddPlay['state'] = 'readonly'
+cbAddPlay.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)   
 
-btP3 = tk.Button(frame4, text="-> P3", width=6)
-btP3.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+btGo = tk.Button(frame4, text="Add", width=6)
+btGo.pack(side=tk.LEFT, padx=5)
 
-btP4 = tk.Button(frame4, text="-> P4", width=6)
-btP4.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
-
-btP5 = tk.Button(frame4, text="-> P5", width=6)
-btP5.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
-
+''' Quit'''
 btQuit = tk.Button(frame4, text="Quit", width=5)
 btQuit.pack(side=tk.RIGHT, padx=5, pady=5)
 
@@ -218,6 +215,15 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b4
 # Shows playing spotify connect devices
 res = sp.devices()
 pprint(res)
+
+# fill add to playlist combobox
+playlists   = sp.current_user_playlists(50, 0)          # fetch playlists from user account
+list = []
+for idx, item in enumerate(playlists['items']):
+    #     print(idx, item['name'] + " - " + item["id"])
+    list.append(item['name'])
+cbAddPlay['values'] = list      
+cbAddPlay.set(list[0])
 
 # sample search to fill the list
 doSearch("artist:", "woods of birnam", False)  
