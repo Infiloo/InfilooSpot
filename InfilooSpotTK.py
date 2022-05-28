@@ -3,10 +3,18 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 from pprint import pprint
+from time import sleep
+
+import os
+from _thread import start_new_thread
+from threading import Thread, Lock
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import showinfo
+
+###  global status data
+Volume = 100
 
 
 ''' combo_Type select serarch type - when Playlists are selected fetch them from spotify and fill combobox'''
@@ -59,6 +67,35 @@ def trResult_Select(event):
 
         doSearch(type, record[icol], True)
 
+# button play
+def btPlay_Click(event):
+    sp.start_playback()
+
+# button pause
+def btPause_Click(event):
+    sp.pause_playback()
+
+# button Vol -
+def btVolMinus_Click(event):
+    global Volume
+    Volume = Volume - 5
+    if(Volume < 0):
+        Volume = 0
+    lbVol.config(text=str(Volume))
+    sp.volume(Volume)
+
+# button Vol +
+def btVolPlus_Click(event):
+    global Volume
+    Volume = Volume + 5
+    if(Volume > 100):
+        Volume = 100
+    lbVol.config(text=str(Volume))
+    sp.volume(Volume)
+
+# button Quited
+def btQuit_Click(event):
+    root.quit()
 
 
 def doSearch(type, value, exact):
@@ -88,9 +125,33 @@ def doSearch(type, value, exact):
         # sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs)   
 
 
+# a background task fetching the current playback and showing it at the 2nd line of the display
+def show_current_playback():
+    global sp
+    while True:
+        x = sp.current_playback("DE")
+        if((x != None) and (any(x))):
+            it = x.get("item")
+            if(any(it)):
+                tit = it["name"]
+                art = it["artists"][0]["name"]
+                alb = it["album"]["name"]
+
+                if(any(tit)):
+                    lbTitel.config(text=tit)
+
+                if(any(art)):
+                    lbArtist.config(text=art)
+
+                if(any(alb)):
+                    lbAlbum.config(text=alb)
+        sleep(1)
+
+
 
 ################################################# main ##################################################################
 root = tk.Tk()
+root.title("Infiloo Spot")
 # width = root.winfo_screenwidth()               
 # height= root.winfo_screenheight()               
 # root.geometry("%dx%d" % (width, height))
@@ -118,17 +179,17 @@ btGo.pack(side=tk.RIGHT, padx=5)
 
 ''' Result list and playlist '''
 frame2 = tk.Frame(root)
-frame2.pack(fill=tk.X)
+frame2.pack(fill=tk.BOTH, expand=True)
 
 frame21 = tk.Frame(frame2)
-frame21.pack(side=tk.LEFT, fill=tk.X, expand=True)
+frame21.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
 columns = ('Titel', 'Artist', 'Album')
 trResult = ttk.Treeview(frame21, columns=columns, show='headings')
 trResult.heading('Titel',  text='Titel')
 trResult.heading('Artist', text='Artist')
 trResult.heading('Album',  text='Album')
-trResult.pack(padx=10,pady=10,side=tk.LEFT,expand=True)
+trResult.pack(padx=10, pady=10, side=tk.LEFT, fill=tk.BOTH, expand=True)
 trResult.bind('<<TreeviewSelect>>', trResult_Select)
 
 frame22 = tk.Frame(frame2)
@@ -151,41 +212,55 @@ frame31 = tk.Frame(frame3)
 frame31.pack(side=tk.LEFT)
 
 frame32 = tk.Frame(frame3)
-frame32.pack(side=tk.LEFT, fill=tk.X, expand=True)
+frame32.pack(side=tk.LEFT)
+
+frame33 = tk.Frame(frame3)
+frame33.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+btPlay = tk.Button(frame31, text=">>", width=5)
+btPlay.pack(side=tk.TOP, padx=5)
+btPlay.bind('<Button-1>', btPlay_Click)
+
+btPause = tk.Button(frame31, text="||", width=5)
+btPause.pack(side=tk.TOP, padx=5)
+btPause.bind('<Button-1>', btPause_Click)
 
 
-lbTitelLb = tk.Label(frame31, text="Titel:", width=5)
+lbTitelLb = tk.Label(frame32, text="Titel:", width=5, anchor='w')
 lbTitelLb.pack(side=tk.TOP, padx=5)
 
-lbTitel = tk.Label(frame32, text="aktueller Titel", width=5)
+lbTitel = tk.Label(frame33, text="aktueller Titel", width=5, anchor='w')
 lbTitel.pack(side=tk.TOP, fill=tk.X, padx=5)
 
 
-lbArtistLb = tk.Label(frame31, text="Artist:", width=5)
+lbArtistLb = tk.Label(frame32, text="Artist:", width=5, anchor='w')
 lbArtistLb.pack(side=tk.TOP, padx=5)
 
-lbArtist = tk.Label(frame32, text="aktueller Artist", width=5)
+lbArtist = tk.Label(frame33, text="aktueller Artist", width=5, anchor='w')
 lbArtist.pack(side=tk.TOP, fill=tk.X, padx=5)
 
 
-lbAlbumLb = tk.Label(frame31, text="Album:", width=5)
+lbAlbumLb = tk.Label(frame32, text="Album:", width=5, anchor='w')
 lbAlbumLb.pack(side=tk.TOP, padx=5)
 
-lbAlbum = tk.Label(frame32, text="aktuelles Album", width=5)
+lbAlbum = tk.Label(frame33, text="aktuelles Album", width=5, anchor='w')
 lbAlbum.pack(side=tk.TOP, fill=tk.X, padx=5)
 
 ''' volume control'''
-frame33 = tk.Frame(frame3)
-frame33.pack(side=tk.RIGHT)
+frame34 = tk.Frame(frame3)
+frame34.pack(side=tk.RIGHT)
 
-btVolMinus = tk.Button(frame33, text="-", width=5)
+btVolMinus = tk.Button(frame34, text="-", width=5)
 btVolMinus.pack(side=tk.TOP, padx=5)
+btVolMinus.bind('<Button-1>', btVolMinus_Click)
 
-lbVol = tk.Label(frame33, text="0", width=5)
+lbVol = tk.Label(frame34, text="0", width=5)
 lbVol.pack(side=tk.TOP, padx=5)
+lbVol.config(text=str(Volume))
 
-btVolPlus = tk.Button(frame33, text="+", width=5)
+btVolPlus = tk.Button(frame34, text="+", width=5)
 btVolPlus.pack(side=tk.BOTTOM, padx=5)
+btVolPlus.bind('<Button-1>', btVolPlus_Click)
 
 ''' Add to playlists'''
 frame4 = tk.Frame(root)
@@ -204,6 +279,7 @@ btGo.pack(side=tk.LEFT, padx=5)
 ''' Quit'''
 btQuit = tk.Button(frame4, text="Quit", width=5)
 btQuit.pack(side=tk.RIGHT, padx=5, pady=5)
+btQuit.bind('<Button-1>', btQuit_Click)
 
 
 
@@ -224,6 +300,9 @@ for idx, item in enumerate(playlists['items']):
     list.append(item['name'])
 cbAddPlay['values'] = list      
 cbAddPlay.set(list[0])
+
+# start background thread diplsaying the current playback data
+start_new_thread(show_current_playback, ())
 
 # sample search to fill the list
 doSearch("artist:", "woods of birnam", False)  
