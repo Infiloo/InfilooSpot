@@ -14,22 +14,28 @@ from tkinter import ttk
 from tkinter.messagebox import showinfo
 
 ###  global status data
-Volume = 100
+_Volume             = 100           # current playback volume
+_playlists_list     = []            # playlists of the user loaded at startup - list without unicode chars
+
+
+
+### strip string from unicode chars that can't be shown on RPis
+def stripString(msg):
+    char_list = [msg[j] for j in range(len(msg)) if ord(msg[j]) in range(65536)]
+    msg=''
+    for j in char_list:
+        msg = msg + j
+    return msg
 
 
 ''' combo_Type select serarch type - when Playlists are selected fetch them from spotify and fill combobox'''
 def cbType_Select(event):
+    global _playlists_list
+
     if(cbType.get() == "Playlists"):
         # Playlists is selcted      
         cbSearch['state'] = 'readonly'                          # block edit
-        playlists   = sp.current_user_playlists(50, 0)          # fetch playlists from user account
-
-        list = []
-        cbSearch['values'] = playlists
-        for idx, item in enumerate(playlists['items']):
-            #     print(idx, item['name'] + " - " + item["id"])
-           list.append(item['name'])
-        cbSearch['values'] = list       
+        cbSearch['values'] = _playlists_list       
         cbSearch.event_generate('<Button-1>')     
     else:
         # something we need t e´search is selected - list list
@@ -77,21 +83,21 @@ def btPause_Click(event):
 
 # button Vol -
 def btVolMinus_Click(event):
-    global Volume
-    Volume = Volume - 5
-    if(Volume < 0):
-        Volume = 0
-    lbVol.config(text=str(Volume))
-    sp.volume(Volume)
+    global _Volume
+    _Volume = _Volume - 5
+    if(_Volume < 0):
+        _Volume = 0
+    lbVol.config(text=str(_Volume))
+    sp.volume(_Volume)
 
 # button Vol +
 def btVolPlus_Click(event):
-    global Volume
-    Volume = Volume + 5
-    if(Volume > 100):
-        Volume = 100
-    lbVol.config(text=str(Volume))
-    sp.volume(Volume)
+    global _Volume
+    _Volume = _Volume + 5
+    if(_Volume > 100):
+        _Volume = 100
+    lbVol.config(text=str(_Volume))
+    sp.volume(_Volume)
 
 # button Quited
 def btQuit_Click(event):
@@ -256,7 +262,7 @@ btVolMinus.bind('<Button-1>', btVolMinus_Click)
 
 lbVol = tk.Label(frame34, text="0", width=5)
 lbVol.pack(side=tk.TOP, padx=5)
-lbVol.config(text=str(Volume))
+lbVol.config(text=str(_Volume))
 
 btVolPlus = tk.Button(frame34, text="+", width=5)
 btVolPlus.pack(side=tk.BOTTOM, padx=5)
@@ -293,13 +299,12 @@ res = sp.devices()
 pprint(res)
 
 # fill add to playlist combobox
-playlists   = sp.current_user_playlists(50, 0)          # fetch playlists from user account
-list = []
-for idx, item in enumerate(playlists['items']):
+_playlists   = sp.current_user_playlists(50, 0)          # fetch playlists from user account
+for idx, item in enumerate(_playlists['items']):
     #     print(idx, item['name'] + " - " + item["id"])
-    list.append(item['name'])
-cbAddPlay['values'] = list      
-cbAddPlay.set(list[0])
+    _playlists_list.append(stripString(item['name']))
+cbAddPlay['values'] = _playlists_list      
+cbAddPlay.set(_playlists_list[0])
 
 # start background thread diplsaying the current playback data
 start_new_thread(show_current_playback, ())
