@@ -3,15 +3,16 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 # mpc / mpd
-from mpd import MPDClient
+# from mpd import MPDClient
 
 # UI
 import lcddriver
 from pynput import keyboard
+import simpleaudio 
 
 #system 
 import os
-from thread import start_new_thread
+from _thread import start_new_thread
 from threading import Thread, Lock
 
 #debug and misc
@@ -32,6 +33,7 @@ gmode       = GMode.NONE    # start with blank and wait until the init is done t
 
 HelloShown = False          # show some start only when starting for the 1st time and not when we loop
 Exit       = False          # we really want to get out
+Paused     = False          # true when we used pause to stop
 
 playlists  = []             # the users playlists when fetched after command p
 playlistidx = 0             # idx when iterating through th eplaylists
@@ -43,6 +45,11 @@ albumidx   = 0              # current selected album
 def on_release(key):
     # print('{0} released'.format(key))
     global cmd
+
+    # play a little tune so we can jead the key stroke
+    wave_obj = simpleaudio.WaveObject.from_wave_file("/home/infiloo/Documents/InfilooSpot/InfilooSpot/sound83.wav")
+    play_obj = wave_obj.play()
+
     if key == keyboard.Key.enter:
         # Stop listener so we can handle the collect cmd
         return False
@@ -70,10 +77,18 @@ def on_release(key):
     elif (key == keyboard.Key.media_volume_down) or (key == keyboard.Key.down):
         cmd = "d"
         return False
+
+    elif (key == keyboard.Key.media_play_pause) or (str(key.char) == '#'):
+        cmd = "#"
+        return False
         
     else:
         if hasattr(key, 'char') == True:
-            cmd = cmd + str(key.char)    
+            # somehow it is wired: z/y are swapped for the wireless keyboard and I could not set this right until now
+            # so do a dirty hack and swap them chars here
+            if  (str(key.char) == 'z'):   cmd = cmd + 'y'
+            elif(str(key.char) == 'y'):   cmd = cmd + 'z'
+            else:                         cmd = cmd + str(key.char)    
             printlcd(0, 0, cmd)
 
 # change general mode
@@ -85,26 +100,26 @@ def change_gmode(new_mode):
         if(new_mode == GMode.SPOT):
             print("SPOT")
             sp.start_playback()         # go on playing
-            mpc.stop();                 # stop playing with mpc
-            mpc.clear()
+            # mpc.stop();                 # stop playing with mpc
+            # mpc.clear()
 
         elif(new_mode == GMode.IRAD):
             print("IRAD")
             sp.pause_playback()         # stop playing spotify
-            mpc.stop();                 # stop playing with mpc
-            mpc.clear()
+            # mpc.stop();                 # stop playing with mpc
+            # mpc.clear()
 
         elif(new_mode == GMode.MED):
             print("MED")
             sp.pause_playback()         # stop playing spotify
-            mpc.stop();                 # stop playing with mpc
-            mpc.clear()
+            # mpc.stop();                 # stop playing with mpc
+            # mpc.clear()
 
         elif(new_mode == GMode.EXIT):
             print("EXIT")
             sp.pause_playback()         # stop playing spotify
-            mpc.stop();                 # stop playing with mpc
-            mpc.clear()
+            # mpc.stop();                 # stop playing with mpc
+            # mpc.clear()
 
     except:
         print("Ups in changemode")
@@ -125,23 +140,28 @@ def show_current_playback():
                     if(any(it)):
                         # print(json.dumps(it, indent=4))     # get a full formatted output of what spitify gives us
 
-                        # show title in the 2nd row
-                        tit = it["name"]
-                        if(any(tit)):
-                            printlcd(0, 1, tit)
+                        if(Paused == False):
+                            # show title in the 2nd row
+                            tit = it["name"]
+                            if(any(tit)):
+                                printlcd(0, 1, tit)
 
-                        # show album
-                        alb = it["album"]["name"]
-                        if(any(alb)):
-                            printlcd(0, 2, alb)
+                            # show album
+                            alb = it["album"]["name"]
+                            if(any(alb)):
+                                printlcd(0, 2, alb)
 
-                        # show 1st artist
-                        art = it["artists"][0]["name"]
-                        if(any(alb)):
-                            printlcd(0, 3, art)
+                            # show 1st artist
+                            art = it["artists"][0]["name"]
+                            if(any(alb)):
+                                printlcd(0, 3, art)
+                        else:
+                            printlcd(0, 1, "  *** paused ***")
+                            printlcd(0, 2, "")
+                            printlcd(0, 3, "")
 
             elif (gmode == GMode.IRAD) or (gmode == GMode.MED):
-                cursong = mpc.currentsong()
+                # cursong = mpc.currentsong()
                 if(any(cursong)):
                     # print(json.dumps(cursong, indent=4))     # get a full formatted output of what spitify gives us
                     print(cursong)
@@ -182,19 +202,23 @@ def printlcd(x, y, str):
 # change the alsa colume up or down by a given % value
 def change_volume(volume):
     global currentvol
+    global sp
 
     try:
+        # print("Volume(1): " + str(currentvol))
         if ((currentvol + volume) <= 100) and ((currentvol + volume) >= 0):
             currentvol = currentvol + volume
-            mpc.setvol(currentvol)
+            # mpc.setvol(currentvol)
             x = sp.current_playback("DE")                       # spotipy crashes when volume() is called but it is not playing yet
             if((x != None) and (any(x))):
                 sp.volume(currentvol)
             print("Volume: " + str(currentvol))
+            printlcd(0, 0, "Volume: " + str(currentvol) + "%")
     except:
-        print("Ups in change_volumer")
+        print("Ups in change_volume")
 
 
+################################################################################################
 # start background thread to show what we are doing
 start_new_thread(show_current_playback, ())
 
@@ -219,9 +243,10 @@ while Exit == False:
 
                 # init and connect to spotify
                 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="680ca5403c694cac9f37b459353cbaeb",            # infiloospot client id
-                                                            client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
-                                                            redirect_uri="http://127.0.0.1:9090",                    # not needed
-                                                            scope="user-read-playback-state,user-modify-playback-state,playlist-read-private"))    # request permissions that we need
+                                                               client_secret="bb988ada317e44e9a1a73f0b7accf06c",        # infiloospot secret
+                                                               redirect_uri="http://127.0.0.1:9090",                    # not needed
+                                                               scope="user-read-playback-state,user-modify-playback-state,playlist-read-private",    # request permissions that we need
+                                                               cache_path="/home/infiloo/Documents/InfilooSpot/InfilooSpot/.cache"))
                 # Shows playing spotify connect devices
                 res = sp.devices()
                 pprint(res)
@@ -229,20 +254,20 @@ while Exit == False:
 
 
                 # create abd connect mpd client
-                mpc = MPDClient()               # create client object
-                mpc.timeout = 10                # network timeout in seconds (floats allowed), default: None
-                mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
-                mpc.connect("localhost", 6600)  # connect to localhost:6600
-                print(mpc.mpd_version)          # print the MPD version
-                mpc.stop();                     # stop playing with mpc just in case it is running from the last time
-                mpc.clear()
-                printlcd(0, 1, "  _-_-_-_-_-_SM")
+                # mpc = MPDClient()               # create client object
+                # mpc.timeout = 10                # network timeout in seconds (floats allowed), default: None
+                # mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
+                # mpc.connect("localhost", 6600)  # connect to localhost:6600
+                # print(mpc.mpd_version)          # print the MPD version
+                # mpc.stop();                     # stop playing with mpc just in case it is running from the last time
+                # mpc.clear()
+                # printlcd(0, 1, "  _-_-_-_-_-_SM")
 
                 # set volume back to max
                 currentvol = 50
-                mpc.setvol(currentvol)
+                # mpc.setvol(currentvol)
                 # sp.volume(currentvol)         # do not set the sp volume as long as we are not playing
-                printlcd(0, 1, "  _-_-_-_-_-_SMV")
+                # printlcd(0, 1, "  _-_-_-_-_-_SMV")
 
                 bInitDone = True
             except: 
@@ -306,8 +331,8 @@ while Exit == False:
                 print("I-Radio")
                 printlcd(0, 0, " Internet radio")
                 change_gmode(GMode.IRAD)
-                mpc.load("radiosender")
-                mpc.play("1")
+                # mpc.load("radiosender")
+                # mpc.play("1")
 
             elif cmd == '7':
                 print("Media")
@@ -331,8 +356,8 @@ while Exit == False:
                 change_gmode(GMode.EXIT)
 
                 # close and disconnect mpc
-                mpc.close()                     # send the close command
-                mpc.disconnect()                # disconnect from the server
+                # mpc.close()                     # send the close command
+                # mpc.disconnect()                # disconnect from the server
 
                 Exit = True
                 exit()
@@ -361,11 +386,11 @@ while Exit == False:
 
                     else:
                         sp.next_track()
-                else:
-                    try:
-                        mpc.next()
-                    except:
-                        print("Ups next")
+                # else:
+                    # try:
+                    #     mpc.next()
+                    # except:
+                    #     print("Ups next")
 
             elif cmd == 'p':
                 print("previous")
@@ -382,22 +407,33 @@ while Exit == False:
                         
                     else:
                         sp.previous_track()
+                # else:
+                    # try:
+                    #     mpc.previous()
+                    # except:
+                    #     print("Ups prev")
+
+            elif cmd == "#":
+                if(Paused == False):
+                    Paused = True
+                    print("pause")
+                    sp.pause_playback('f915ab6f8cc68f6e3c4293703651d13f11c1e062')
                 else:
-                    try:
-                        mpc.previous()
-                    except:
-                        print("Ups prev")
+                    Paused = False
+                    print("resume")
+                    sp.start_playback('f915ab6f8cc68f6e3c4293703651d13f11c1e062')
+
 
             elif cmd == '':                         # no input - in playlist mode selection if current playlist
                 print("select")
                 if any(playlists):                  #  when we have a selected playlist ask spotify to play it
-                    sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', playlists["items"][playlistidx]["uri"]) 
+                    sp.start_playback('f915ab6f8cc68f6e3c4293703651d13f11c1e062', playlists["items"][playlistidx]["uri"]) 
 
                     playlists  = []                 # back to normal mode now playing the playlist
                     # playlistidx = 0               # keep idx so we start from this in the list next time            
 
                 elif any(albums):                   # when we have a selected album ask spotify to play it 
-                    sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', albums['albums']["items"][albumidx]["uri"])
+                    sp.start_playback('f915ab6f8cc68f6e3c4293703651d13f11c1e062', albums['albums']["items"][albumidx]["uri"])
 
                     albums   = []                   # select list to return int normal mode
                     albumidx = 0
@@ -422,7 +458,7 @@ while Exit == False:
                                 print(idx, track['name'], track['uri'] )
                                 trackURIs.append(track['uri'])
                     
-                            sp.start_playback('4e6e703f564bfdfcb1c626ebd675b6f26ec90c7d', uris=trackURIs)      
+                            sp.start_playback('f915ab6f8cc68f6e3c4293703651d13f11c1e062', uris=trackURIs)      
 
                     else:
                         # look for albums and generate a list of found ones to select like a playlist
