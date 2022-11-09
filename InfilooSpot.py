@@ -8,7 +8,6 @@ from spotipy.oauth2 import SpotifyOAuth
 # UI
 import lcddriver
 from pynput import keyboard
-import simpleaudio 
 
 #system 
 import os
@@ -45,10 +44,6 @@ albumidx   = 0              # current selected album
 def on_release(key):
     # print('{0} released'.format(key))
     global cmd
-
-    # play a little tune so we can jead the key stroke
-    wave_obj = simpleaudio.WaveObject.from_wave_file("/home/infiloo/Documents/InfilooSpot/InfilooSpot/sound83.wav")
-    play_obj = wave_obj.play()
 
     if key == keyboard.Key.enter:
         # Stop listener so we can handle the collect cmd
@@ -156,7 +151,7 @@ def show_current_playback():
                             if(any(alb)):
                                 printlcd(0, 3, art)
                         else:
-                            printlcd(0, 1, "  *** paused ***")
+                            printlcd(0, 1, "   *** paused ***")
                             printlcd(0, 2, "")
                             printlcd(0, 3, "")
 
@@ -252,24 +247,11 @@ while Exit == False:
                 pprint(res)
                 printlcd(0, 1, "  _-_-_-_-_-_S")
 
-
-                # create abd connect mpd client
-                # mpc = MPDClient()               # create client object
-                # mpc.timeout = 10                # network timeout in seconds (floats allowed), default: None
-                # mpc.idletimeout = None          # timeout for fetching the result of the idle command is handled seperately, default: None
-                # mpc.connect("localhost", 6600)  # connect to localhost:6600
-                # print(mpc.mpd_version)          # print the MPD version
-                # mpc.stop();                     # stop playing with mpc just in case it is running from the last time
-                # mpc.clear()
-                # printlcd(0, 1, "  _-_-_-_-_-_SM")
-
                 # set volume back to max
                 currentvol = 50
-                # mpc.setvol(currentvol)
-                # sp.volume(currentvol)         # do not set the sp volume as long as we are not playing
-                # printlcd(0, 1, "  _-_-_-_-_-_SMV")
-
+ 
                 bInitDone = True
+
             except: 
                 print("Ups in init")
                 sleep(1)
